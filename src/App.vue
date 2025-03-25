@@ -71,13 +71,8 @@ const createDragBehavior = () => {
       const newValue = yScale.value.invert(newY)
 
       // Update data
-      d.value = Math.max(0, Math.min(100, newValue))
-      chartData.value = [...chartData.value] // Trigger reactivity
-
-      // Update tooltip if visible
-      if (tooltip.value.visible) {
-        tooltip.value.content = `${d.category}: ${d.value.toFixed(1)}`
-      }
+      d.value = Math.round(newValue)
+      // chartData.value = [...chartData.value] // Trigger reactivity
     })
     .on('end', function () {
       d3.select(this).classed('active', false)
