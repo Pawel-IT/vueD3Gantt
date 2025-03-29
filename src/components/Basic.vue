@@ -6,6 +6,7 @@ import { color, type Path, range, svg } from 'd3'
 
 const amplitude = ref(1)
 const wavey = ref(0.5)
+const points = 20
 
 const visData = (selection, data) => {
   const lineGenerator = d3
@@ -45,6 +46,24 @@ const pause_snake = ref(() => {})
 const resume_snake = ref(() => {})
 const isActive_snake = ref(true)
 
+let t = 0
+let t2 = 0
+let grower = 1
+const grow = () => {
+  if (t2 > 10 && t2 < 20) {
+    t2++
+    grower--
+  } else if (t2 > 1 && t2 < 10) {
+    t2++
+    grower++
+  } else if (t2 >= 20) {
+    t2 = 0
+    grower = 1
+  }
+  t2 += 1
+
+  return grower
+}
 onMounted(() => {
   const width = 600
   const height = 400
@@ -56,29 +75,11 @@ onMounted(() => {
     .attr('height', height)
     .attr('viewBox', [0, 0, width, height])
 
-  // Append a path for the area (under the axes).
-
-  let t = 0
-  let t2 = 0
-  let grower = 1
-
   const { pause, resume, isActive } = useIntervalFn(() => {
-    const points = 20
-    if (t2 > 10 && t2 < 20) {
-      t2++
-      grower--
-    } else if (t2 > 1 && t2 < 10) {
-      t2++
-      grower++
-    } else if (t2 >= 20) {
-      t2 = 0
-      grower = 1
-    }
-    t2 += 1
     const data = d3.range(points).map((d, i) => ({
       x: d * 60 + 50,
       y: Math.round(150 + Math.sin(d * wavey.value + t) * 120),
-      r: grower * 3 * Math.cos(i),
+      r: Math.max(0, grow() * 3 * Math.cos(i)),
     }))
 
     svg.call(visData, data)
