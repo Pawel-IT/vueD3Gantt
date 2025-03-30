@@ -1,14 +1,17 @@
 <script setup lang="ts">
-import * as d3 from 'd3'
-import { onMounted, ref, watch } from 'vue'
 import { useIntervalFn } from '@vueuse/core'
-import { color, type Path, range, svg } from 'd3'
+import * as d3 from 'd3'
+import { type BaseType, type Selection } from 'd3'
+import { onMounted, ref } from 'vue'
 
 const amplitude = ref(1)
 const wavey = ref(0.5)
 const points = 20
 
-const visData = (selection, data) => {
+const visData = (
+  selection: Selection<BaseType | SVGSVGElement, unknown, HTMLElement, undefined>,
+  data,
+) => {
   const lineGenerator = d3
     .line()
     .x((d) => d.x)
@@ -41,6 +44,7 @@ const visData = (selection, data) => {
     .style('text-anchor', 'middle')
     .attr('class', 'text_label')
 }
+// selection.append('g').selectAll('path')
 
 const pause_snake = ref(() => {})
 const resume_snake = ref(() => {})
@@ -65,6 +69,11 @@ const grow = () => {
   return grower
 }
 onMounted(() => {
+  setupChart()
+})
+
+const renderChart = () => {}
+const setupChart = () => {
   const width = 600
   const height = 400
   const margin = { top: 20, right: 20, bottom: 30, left: 40 }
@@ -84,12 +93,12 @@ onMounted(() => {
 
     svg.call(visData, data)
 
-    t += 0.3
+    t += 0.3 //TODO: this will grow forever in memory, not a good idea lol so fix
     pause_snake.value = pause
     resume_snake.value = resume
     isActive_snake.value = isActive
   }, 100)
-})
+}
 </script>
 
 <template>
