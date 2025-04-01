@@ -1,158 +1,100 @@
 <script setup lang="ts">
-import { useIntervalFn } from '@vueuse/core'
+import { selection } from 'd3'
 import * as d3 from 'd3'
-import { type BaseType, type Selection } from 'd3'
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch, onUnmounted } from 'vue'
 
-const amplitude = ref(1)
-const wavey = ref(0.5)
-const points = 20
+interface ChartData {
+  value: number
+  label: string
+}
 
-const visData = (
-  selection: Selection<BaseType | SVGSVGElement, unknown, HTMLElement, undefined>,
-  data,
-) => {
-  const lineGenerator = d3
-    .line()
-    .x((d) => d.x)
-    .y((d) => d.y * amplitude.value)
+const svgRef = ref<SVGSVGElement | null>(null)
+
+type D3Selection = d3.Selection<SVGGElement, unknown, null, undefined>
+const chart = ref<D3Selection | null>(null)
+
+const data = ref<ChartData[]>([
+  { value: 10, label: '0' },
+  { value: 20, label: '1' },
+  { value: 12, label: '2' },
+])
+
+const width = 600
+const height = 400
+const xScale = d3.scaleLinear().domain([0, data.value.length]).range([0, width])
+
+function initChart() {
+  if (!svgRef.value) return
+
+  const svg = d3.select(svgRef.value)
+  // svg.selectAll('*').remove()
+
+  chart.value = svg.append('g')
+  // .attr('transform', `translate(${width / 2}, ${height / 2})`)
+
+  updateChart()
+  add_x_axis(chart.value)
+}
+
+function updateChart() {
+  if (!chart.value) return
+
+  const selection = chart.value
+    .selectAll<SVGRectElement, ChartData>('rect')
+    .data(data.value, (d) => d.label)
 
   selection
-    .selectAll('path')
-    .data([null])
-    .join('path')
-    .attr('d', lineGenerator(data))
-    .attr('fill', 'none')
-    .attr('stroke', 'grey')
-    .attr('stroke-width', 2)
+    .enter()
+    .append('rect')
+    .attr('x', 0)
+    .attr('fill', 'steelblue')
+    .merge(selection)
+    .transition()
+    .duration(500)
+    .attr('width', 10)
+    .attr('height', (d) => d.value * 10)
+    // .attr('x', (d, i) => i * 12)
+    // .attr('y', (d) => d.value * 10)
+    .attr('y', 0)
+    .attr('transform', (d, i) => `translate(${xScale(i)}, 0)`)
+  selection.exit().transition().duration(500).attr('x', 0).remove()
+}
+// const resizeObserver = new ResizeObserver(() => {
+//   if (svgRef.value) {
+//     const { width, height } = svgRef.value.getBoundingClientRect()
+//     svgRef.value.setAttribute('width', `${width}`)
+//     svgRef.value.setAttribute('height', `${height}`)
+//   }
+// })
 
+const add_x_axis = (selection: D3Selection) => {
+  // if (!selection.select('.x-axis').empty()) {
+  //   console.log('No selection')
+  // }
+  selection.select('.x-axis').remove()
   selection
-    .selectAll('circle')
-    .data(data)
-    .join('circle')
-    .attr('r', (d) => d.r + d.y / 3)
-    .attr('cx', (d) => d.x)
-    .attr('cy', (d) => d.y * amplitude.value)
-
-  selection
-    .selectAll('text')
-    .data(data)
-    .join('text')
-    .text((d) => Math.round(d.y * amplitude.value))
-    .attr('x', (d) => d.x)
-    .attr('y', (d) => d.y * amplitude.value)
-    .style('text-anchor', 'middle')
-    .attr('class', 'text_label')
+    .append('g')
+    .attr('class', 'x-axis')
+    .attr('transform', `translate(0, ${height - 30})`)
+    .transition()
+    .duration(500)
+    .call(d3.axisBottom(xScale))
 }
-// selection.append('g').selectAll('path')
-
-const pause_snake = ref(() => {})
-const resume_snake = ref(() => {})
-const isActive_snake = ref(true)
-
-let t = 0
-let t2 = 0
-let grower = 1
-const grow = () => {
-  if (t2 > 10 && t2 < 20) {
-    t2++
-    grower--
-  } else if (t2 > 1 && t2 < 10) {
-    t2++
-    grower++
-  } else if (t2 >= 20) {
-    t2 = 0
-    grower = 1
-  }
-  t2 += 1
-
-  return grower
+const add_data = () => {
+  data.value.push({ value: Math.random() * 10, label: data.value.length + 1 })
+  xScale.domain([0, data.value.length])
+  add_x_axis(chart.value)
 }
-onMounted(() => {
-  setupChart()
-})
 
-const renderChart = () => {}
-const setupChart = () => {
-  const width = 600
-  const height = 400
-  const margin = { top: 20, right: 20, bottom: 30, left: 40 }
-
-  const svg = d3
-    .select('#charter')
-    .attr('width', width + 300)
-    .attr('height', height)
-    .attr('viewBox', [0, 0, width, height])
-
-  const { pause, resume, isActive } = useIntervalFn(() => {
-    const data = d3.range(points).map((d, i) => ({
-      x: d * 60 + 50,
-      y: Math.round(150 + Math.sin(d * wavey.value + t) * 120),
-      r: Math.max(0, grow() * 3 * Math.cos(i)),
-    }))
-
-    svg.call(visData, data)
-
-    t += 0.3 //TODO: this will grow forever in memory, not a good idea lol so fix
-    pause_snake.value = pause
-    resume_snake.value = resume
-    isActive_snake.value = isActive
-  }, 100)
-}
+onMounted(initChart)
+watch(() => data, updateChart, { deep: true })
 </script>
 
 <template>
-  <svg id="charter">
-    <defs>
-      <linearGradient id="header-shape-gradient" x2="0.35" y2="1">
-        <stop offset="0%" stop-color="var(--color-stop)" />
-        <stop offset="50%" stop-color="var(--color-stop)" />
-        <stop offset="100%" stop-color="var(--color-bot)" />
-      </linearGradient>
-    </defs>
-  </svg>
-
-  <button
-    v-if="isActive_snake.value"
-    @click="pause_snake"
-    style="background-color: darkred; color: white"
-  >
-    Pause
-  </button>
-  <button v-else @click="resume_snake" style="background-color: black; color: white">Resume</button>
-  <label for="amplitude">Amplitude: {{ amplitude }}</label>
-  <input type="range" v-model="amplitude" min="0" max="1.5" step=".05" />
-  <label for="wavey">Wavey: {{ wavey }}</label>
-  <input type="range" v-model="wavey" min="0" max="1.5" step=".05" />
+  <h1>Basic D3 Example</h1>
+  <div class="chart-container">
+    <svg ref="svgRef" :width="width" :height="height"></svg>
+  </div>
+  <input type="range" min="0" max="40" v-model="data[0].value" />
+  <button @click="add_data">Add Data</button>
 </template>
-
-<style>
-svg circle {
-  fill: url(#header-shape-gradient) chartreuse;
-  fill-opacity: 0.4;
-  stroke: rgba(0, 0, 0, 0.5);
-  stroke-width: 4;
-  filter: drop-shadow(7px 7px 4px rgba(222, 222, 2, 0.2));
-}
-svg circle:hover {
-  fill: chartreuse;
-  fill-opacity: 0.7;
-  stroke: rgba(0, 0, 0, 0.5);
-  stroke-width: 4;
-  filter: drop-shadow(7px 7px 4px rgba(222, 222, 2, 0.2));
-}
-#header-shape-gradient {
-  --color-stop: chartreuse;
-  --color-bot: #faed34;
-}
-
-.text_label {
-  color: white;
-  fill: white;
-  stroke-width: 0.5;
-  stroke: black;
-  font-size: 16px;
-  font-weight: bold;
-  filter: drop-shadow(3px 3px 4px rgba(0, 0, 2, 0.7));
-}
-</style>
